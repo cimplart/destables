@@ -16,9 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import struct
-from tkinter.tix import COLUMN
-from xmlrpc.client import boolean
 import PySimpleGUI as sg
 from tabulate import tabulate
 import re
@@ -28,14 +25,14 @@ import tabhelper
 def hidable(layout, key):
     return sg.pin(sg.Column(layout, key=key))
 
-def show_inner_table(initial_values, header, required_cols):
+def show_inner_table(initial_values, header, required_cols, col_width):
 
     result = initial_values
 
     MAX_ROWS = 16
     MAX_COL = len(header)
 
-    inner_layout = [ [ sg.Input(size=(20, 1), pad=(1,1), justification='right', key=str(i)+','+str(j), enable_events=True)
+    inner_layout = [ [ sg.Input(pad=(1,1), justification='right', key=str(i)+','+str(j), enable_events=True, size=(col_width[j], 1))
                       for j in range(MAX_COL) ] for i in range(MAX_ROWS) ]
 
     column_layout = [ [ hidable([ inner_layout[row] ], key=row) ] for row in range(MAX_ROWS) ]
@@ -135,9 +132,11 @@ def show_type_table():
     struct_elements = [ ]
     enum_constants = [ ]
 
+    inner_table_col_width = [ 32, 32, 64]
+
     while True:
         event, values = window.read()
-        print(event, values)
+        #print(event, values)
 
         if event == sg.WIN_CLOSED:
             break
@@ -193,7 +192,8 @@ def show_type_table():
                 window['typedef-row'].update(visible=False)
                 window['enum-row'].update(visible=True)
         elif event == 'edit-elements':
-            struct_elements = show_inner_table(struct_elements, ['Type:', 'Name:', 'Description:'], required_cols=[0, 1, 2])
+            struct_elements = show_inner_table(struct_elements, ['Type:', 'Name:', 'Description:'],
+                                               required_cols=[0, 1, 2], col_width = inner_table_col_width)
             struct_fields = ''
             for row in range(len(struct_elements)):
                 struct_fields += struct_elements[row][1] + ','
@@ -205,7 +205,8 @@ def show_type_table():
                     struct_fields = struct_fields[:64] + '...'
             window['struct-fields'].update(struct_fields)
         elif event == 'edit-constants':
-            enum_constants = show_inner_table(enum_constants, ['Constant:', 'Initial value:', 'Description:'], required_cols=[0, 2])
+            enum_constants = show_inner_table(enum_constants, ['Constant:', 'Initial value:', 'Description:'],
+                                              required_cols=[0, 2], col_width=inner_table_col_width)
             enum_idents = ''
             for row in range(len(enum_constants)):
                 enum_idents += enum_constants[row][0] + ','
