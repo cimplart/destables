@@ -50,29 +50,32 @@ def show_function_table():
     CALL_CYCLE = 'Call cycle interval:'
 
     inputs = [
-        sg.Input(key=FUNC_NAME, size=(48, 1)),
-        sg.Multiline(key=DESCRIPTION, enter_submits=False, autoscroll=True, size=(64, 2)),
+        sg.Input(key=FUNC_NAME, size=(48, 1), enable_events=True),
+        sg.Multiline(key=DESCRIPTION, enter_submits=False, autoscroll=True, size=(64, 2), enable_events=True),
         sg.Multiline(key=SYNTAX, enter_submits=False, autoscroll=True, enable_events=True, size=(64, 5)),
-        sg.Input(key=HEADER, size=(32, 1)),
+        sg.Input(key=HEADER, size=(32, 1), enable_events=True),
     ]
 
     layout = [
-        ([ sg.Text([ FUNC_NAME, DESCRIPTION, SYNTAX, HEADER ][i]), sg.Push(), inputs[i] ] for i in range(4)),
+        ([ sg.Text([ FUNC_NAME, DESCRIPTION, SYNTAX, HEADER ][i], k=[ FUNC_NAME, DESCRIPTION, SYNTAX, HEADER ][i]+'-label'),
+           sg.Push(), inputs[i] ] for i in range(4)),
         [ sg.Checkbox(text=ISR, key=ISR) ],
         [ sg.Checkbox(text=REENTRANT, key=REENTRANT) ],
-        [ sg.Text(RETURN), sg.Push(), sg.Input('void', key='retval-type', size=(32,1)), sg.Input(key='retval-description', size=(64,1)) ],
-        [ sg.Text(IN_PARAMS), sg.Text('None', key='in-params', size=(48, 1)), sg.Push(), sg.Button('Edit input parameters', key='edit-in-params', enable_events=True) ],
-        [ sg.Text(OUT_PARAMS), sg.Text('None', key='out-params', size=(48, 1)), sg.Push(), sg.Button('Edit output parameters', key='edit-out-params', enable_events=True) ],
-        [ sg.Text(IN_OUT_PARAMS), sg.Text('None', key='inout-params', size=(48, 1)), sg.Push(), sg.Button('Edit in-out parameters', key='edit-inout-params', enable_events=True) ],
-        [ sg.Checkbox(text='Is cyclic', key='is-cyclic', enable_events=True), sg.Push(), sg.Text(CALL_CYCLE), sg.Input(key=CALL_CYCLE) ],
+        [ sg.Text(RETURN, k=RETURN+'-label'), sg.Push(), sg.Input('void', key='retval-type', size=(32,1)), sg.Input(key='retval-description', size=(64,1)) ],
+        [ sg.Text(IN_PARAMS, k=IN_PARAMS+'-label'), sg.Text('None', key='in-params', size=(48, 1)), sg.Push(), sg.Button('Edit input parameters', key='edit-in-params', enable_events=True) ],
+        [ sg.Text(OUT_PARAMS, k=OUT_PARAMS+'-label'), sg.Text('None', key='out-params', size=(48, 1)), sg.Push(), sg.Button('Edit output parameters', key='edit-out-params', enable_events=True) ],
+        [ sg.Text(IN_OUT_PARAMS, k=IN_OUT_PARAMS+'-label'), sg.Text('None', key='inout-params', size=(48, 1)), sg.Push(), sg.Button('Edit in-out parameters', key='edit-inout-params', enable_events=True) ],
+        [ sg.Checkbox(text='Is cyclic', key='is-cyclic', enable_events=True), sg.Push(), sg.Text(CALL_CYCLE, k=CALL_CYCLE+'-label'), sg.Input(key=CALL_CYCLE, enable_events=True) ],
         [ sg.HorizontalSeparator() ],
         [ sg.Text('', key='status', size=(48,1), text_color='red'), sg.Push(),
                 sg.Button('Clear', key='clear'), sg.Button('Copy table to clipboard', key='copy'),
-                sg.Button('Copy to clipboard & close', key='copy&close') ]
+                sg.Button('Close', key='close') ]
     ]
 
     clearable_keys = [ FUNC_NAME, DESCRIPTION, SYNTAX, HEADER, ISR, REENTRANT, RETURN,
                        IN_PARAMS, OUT_PARAMS, IN_OUT_PARAMS, CALL_CYCLE ]
+
+    simply_checked_keys = [ FUNC_NAME, DESCRIPTION, HEADER ]
 
     window = sg.Window('Fill in function table', layout, finalize=True)
 
@@ -106,15 +109,38 @@ def show_function_table():
             window['out-params']('None')
             window['inout-params']('None')
         elif 'copy' in event:
+            # Start of input validation.
+            window['status'].update('')
+            for k in simply_checked_keys:
+                if not values[k]:
+                    window[k+'-label'].update(text_color='red')
+                    continue
+                else:
+                    window[k+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+            # Check consistency of the input.
             try:
                 func_params = _get_func_params(values[SYNTAX])
+                window[SYNTAX+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
             except Exception as e:
-                window['status'].update('ERROR: invalid syntax')
+                window['status'].update('Invalid syntax')
+                window[SYNTAX+'-label'].update(text_color='red')
                 continue
 
-            if _get_func_name(values[SYNTAX]) != values[FUNC_NAME].strip():
-                window['status'].update('ERROR: function name mismatch')
+            if values[FUNC_NAME] == '' or _get_func_name(values[SYNTAX]) != values[FUNC_NAME].strip():
+                window['status'].update('Function name mismatch')
+                window[SYNTAX+'-label'].update(text_color='red')
+                window[FUNC_NAME+'-label'].update(text_color='red')
                 continue
+            else:
+                window[SYNTAX+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+                window[FUNC_NAME+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+            if values['retval-type'] != 'void' and not values['retval-description']:
+                window[RETURN+'-label'].update(text_color='red')
+                continue
+            else:
+                window[RETURN+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
 
             documented_params = []
             for k in params_dict:
@@ -124,8 +150,23 @@ def show_function_table():
             undocumented_params = list(set(func_params) - set(documented_params))
 
             if len(undocumented_params) > 0:
-                window['status'].update('WARNING: ' + str(len(undocumented_params)) + ' undocumented parameters')
+                window['status'].update(str(len(undocumented_params)) + ' undocumented parameter(s)')
+                continue
 
+            params_missing_in_syntax = list(set(documented_params) - set(func_params))
+            if len(params_missing_in_syntax) > 0:
+                window[SYNTAX+'-label'].update(text_color='red')
+                window['status'].update(str(len(params_missing_in_syntax)) + ' missing parameter(s) in function syntax')
+                continue
+
+            if values['is-cyclic'] and not values[CALL_CYCLE]:
+                window[CALL_CYCLE+'-label'].update(text_color='red')
+                continue
+            else:
+                window[CALL_CYCLE+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+            # End of input validation.
+            # Create the table.
             header = [ FUNC_NAME, values[FUNC_NAME]]
             table = [ [ DESCRIPTION, values[DESCRIPTION ] ],
                       [ SYNTAX, values[SYNTAX] ],
@@ -185,6 +226,8 @@ def show_function_table():
             if not values['is-cyclic']:
                 window[CALL_CYCLE].update('')
             window[CALL_CYCLE].update(disabled=not values['is-cyclic'])
+        elif event in simply_checked_keys + [ SYNTAX, CALL_CYCLE ]:
+            window[event + '-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
 
         if 'close' in event:
             break

@@ -48,7 +48,7 @@ def show_type_table():
                 [ hidable(enum_row, key='enum-row')],
                 [ sg.HorizontalSeparator() ],
                 [ sg.Push(), sg.Button('Clear', key='clear'), sg.Button('Copy table to clipboard', key='copy'),
-                  sg.Button('Copy to clipboard & close', key='copy&close') ]
+                  sg.Button('Close', key='close') ]
              ]
 
     clearable_keys = [ k for k in fields[0:4] if k != 'Kind:' ] + [ 'struct-fields', 'enum-values']
