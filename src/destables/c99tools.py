@@ -1,44 +1,78 @@
 
-from pycparser import c_parser, c_ast
-import sys
+import os
+from lark import Lark
+from lark.visitors import Visitor
+from lark import Token, Tree
 
-def get_func_params(c_decl):
+parser = None
 
-    parser = c_parser.CParser()
+def init_parser():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    grammar_file_path = os.path.join(dir_path, "c99.lark")
+    f = open(grammar_file_path)
 
-    node = parser.parse(c_decl, filename='')
+    global parser
 
-    if (not isinstance(node, c_ast.FileAST) or not isinstance(node.ext[-1], c_ast.Decl)):
-        raise Exception("Not a valid declaration")
+    parser = Lark(f.read(), debug=True)
 
-    return _seek_func_params(node.ext[-1].type)
+def _decl_from_syntax(syntax):
+    decl = syntax.replace('.. code-block::', '')
+    decl = decl.replace('\n', ' ')
+    decl = decl.strip() + ';'
+    return decl
 
-def _seek_func_params(decl):
+class FuncVisitor(Visitor):
 
-    typ = type(decl)
+    def __init__(self) -> None:
+        super().__init__()
+        self.f_name = ''
+        self.f_params = []
 
-    if typ == c_ast.FuncDecl:
-        result = []
-        if decl.args:
-            params = [_seek_func_params(param) for param in decl.args.params]
-            for param in decl.args.params:
-                if param.name is not None:
-                    result.append(param.name)
+    def function_declarator(self, tree):
+        assert len(tree.children) == 2
+        assert tree.children[0].data == 'direct_declarator'
+        assert isinstance(tree.children[0].children[0], Token)
+        assert tree.children[0].children[0].type == 'IDENTIFIER'
+        assert tree.children[1].data == 'parameter_type_list'
+        self.f_name = tree.children[0].children[0].value
 
-        return result
+    def _print_tree(self, tree, indent):
+        for c in tree.children:
+            if isinstance(c, Token):
+                print(' ' * indent, 'Token[', c.type, ']: ', c.value)
+            else:
+                print(' ' * indent, 'Tree[', c.data, ']')
+                self._print_tree(c, indent * 2)
 
-def get_func_name(c_decl):
+    def _get_identifier(self, tree):
+        for c in tree.children:
+            if isinstance(c, Token) and c.type == 'IDENTIFIER':
+                return c.value
+            else:
+                ident = self._get_identifier(c)
+                if ident != None:
+                    return ident
+        return None
 
-    parser = c_parser.CParser()
+    def parameter_declaration(self, tree):
+        #self._print_tree(tree, 3)
+        assert tree.children[0].data == 'declaration_specifiers'    #not used
+        if tree.children[1].data == 'declarator':
+            param = self._get_identifier(tree.children[1])
+            self.f_params.append(param)
+        elif tree.children[1].data == 'abstract_declarator':    #not allowed in syntax
+            raise Exception("abstract declarators are not allowed in syntax input")
 
-    node = parser.parse(c_decl, filename='')
+#    def __default__(self, tree):
+#        print(tree.data)
 
-    if (not isinstance(node, c_ast.FileAST) or not isinstance(node.ext[-1], c_ast.Decl)):
-        raise Exception("Not a valid declaration")
+def get_func_info(syntax):
 
-    return _seek_func_name(node.ext[-1].type)
+    c_decl = _decl_from_syntax(syntax)
 
-def _seek_func_name(decl):
+    parse_tree = parser.parse(c_decl + '\n')
 
-    if type(decl) == c_ast.FuncDecl:
-        return decl.type.declname
+    visitor = FuncVisitor()
+    visitor.visit_topdown(tree=parse_tree)
+    return visitor.f_name, visitor.f_params
+

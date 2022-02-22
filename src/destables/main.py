@@ -19,8 +19,11 @@
 from typewin import *
 from funcwin import *
 import PySimpleGUI as sg
+from c99tools import init_parser
 
 def main():
+
+    init_parser()
 
     layout = [[ sg.Button('Type table', key='type', size = (30, 2)) ],
               [ sg.Button('Function table', key='function', size = (30, 2)) ],

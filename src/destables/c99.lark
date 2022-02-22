@@ -1,0 +1,298 @@
+start:  translation_unit
+
+translation_unit: external_declaration*
+
+external_declaration:  function_definition
+                     | declaration
+
+function_definition: declaration_specifiers declarator declaration_list? compound_statement
+
+declaration: declaration_specifiers init_declarator_list?  ";"
+            | static_assert_declaration
+            | ";"
+
+declaration_specifiers: declaration_specifier+
+
+declaration_specifier: STORAGE_CLASS_SPECIFIER
+                      | type_specifier
+                      | TYPE_QUALIFIER
+                      | FUNCTION_SPECIFIER
+                      | alignment_specifier
+
+declarator: pointer?  direct_declarator
+
+declaration_list: declaration+
+
+compound_statement: "{"  declaration_or_statement* "}"
+
+declaration_or_statement: declaration
+            | statement
+
+init_declarator_list: init_declarator ("," init_declarator)*
+
+init_declarator: declarator ("=" initializer)?
+
+static_assert_declaration: "_Static_assert" "(" constant_expression "," STRING_LITERAL  ")" ";"
+
+STORAGE_CLASS_SPECIFIER: "typedef"
+                        | "extern"
+                        | "static"
+                        | "_Thread_local"
+                        | "auto"
+                        | "register"
+
+type_specifier: TYPE_NAME
+               | atomic_type_specifier
+               | struct_or_union_specifier
+               | enum_specifier
+               | TYPEDEF_NAME
+
+TYPE_NAME:  "void"
+          | "char"
+          | "short"
+          | "int"
+          | "long"
+          | "float"
+          | "double"
+          | "signed"
+          | "unsigned"
+          | "_Bool"
+          | "_Complex"
+          | "_Imaginary"
+
+TYPEDEF_NAME:  IDENTIFIER
+
+TYPE_QUALIFIER: "const"
+               | "restrict"
+               | "volatile"
+               | "_Atomic"
+
+FUNCTION_SPECIFIER: "inline"
+                   | "_Noreturn"
+
+alignment_specifier: "_Alignas" "(" type_name ")"
+                    | "_Alignas" "(" constant_expression ")"
+
+pointer: "*" type_qualifier_list? pointer?
+
+direct_declarator: IDENTIFIER
+                  | "(" declarator ")"
+                  | direct_declarator "[" ("*")? "]"
+                  | direct_declarator "[" "static" type_qualifier_list? assignment_expression "]"
+                  | direct_declarator "[" type_qualifier_list ["*"] "]"
+                  | direct_declarator "[" type_qualifier_list ["static"] assignment_expression "]"
+                  | direct_declarator "[" assignment_expression "]"
+                  | direct_declarator "(" parameter_type_list ")" -> function_declarator
+                  | direct_declarator "(" identifier_list ")"
+                  | direct_declarator "(" ")"
+
+identifier_list: IDENTIFIER ("," IDENTIFIER)*
+
+initializer_list: designative_initializer ("," designative_initializer)*
+
+designative_initializer: [designation] initializer
+
+initializer: "{" initializer_list [","] "}"
+            | assignment_expression
+
+constant_expression: conditional_expression
+
+atomic_type_specifier: "_Atomic" "(" type_name ")"
+
+struct_or_union_specifier: STRUCT_OR_UNION "{" struct_declaration_list "}"
+                          | STRUCT_OR_UNION IDENTIFIER ["{" struct_declaration_list "}"]
+
+STRUCT_OR_UNION: "struct"
+                | "union"
+
+struct_declaration_list: struct_declaration+
+
+struct_declaration: specifier_qualifier_list ";"
+                   | specifier_qualifier_list struct_declarator_list ";"
+                   | static_assert_declaration
+
+enum_specifier: "enum" "{" enumerator_list [","] "}"
+               | "enum" IDENTIFIER ("{" enumerator_list [","] "}")?
+
+enumerator_list: enumerator ("," enumerator)*
+
+enumerator: ENUMERATION_CONSTANT ("=" constant_expression)?
+
+ENUMERATION_CONSTANT: IDENTIFIER
+
+type_name: specifier_qualifier_list abstract_declarator?
+
+specifier_qualifier_list: specifier_qualifier (specifier_qualifier)*
+
+specifier_qualifier: type_specifier | TYPE_QUALIFIER
+
+abstract_declarator: pointer direct_abstract_declarator?
+                    | direct_abstract_declarator
+
+direct_abstract_declarator: "(" abstract_declarator ")"
+                           | "(" parameter_type_list ")"
+                           | "(" ")"
+                           | "[" ["*"] "]"
+                           | "[" "static" [type_qualifier_list] assignment_expression "]"
+                           | "[" type_qualifier_list [["static"] assignment_expression] "]"
+                           | "[" assignment_expression "]"
+                           | direct_abstract_declarator "[" ["*"] "]"
+                           | direct_abstract_declarator "[" "static" [type_qualifier_list] assignment_expression "]"
+                           | direct_abstract_declarator "[" type_qualifier_list [["static"] assignment_expression] "]"
+                           | direct_abstract_declarator "[" assignment_expression "]"
+                           | direct_abstract_declarator "(" parameter_type_list ")"
+                           | direct_abstract_declarator "(" ")"
+
+struct_declarator_list: struct_declarator ("," struct_declarator)*
+
+type_qualifier_list: TYPE_QUALIFIER+
+
+parameter_type_list: parameter_list ["," "..."]
+
+struct_declarator: ":" constant_expression
+                  | declarator [":" constant_expression]
+
+ASSIGNMENT_OPERATOR: "="
+                    | "*="
+                    | "/="
+                    | "%="
+                    | "+="
+                    | "-="
+                    | "<<="
+                    | ">>="
+                    | "&="
+                    | "^="
+                    | "|="
+
+parameter_list: parameter_declaration ("," parameter_declaration)*
+
+parameter_declaration: declaration_specifiers [declarator | abstract_declarator]
+
+expression: assignment_expression ("," assignment_expression)*
+
+assignment_expression: conditional_expression
+                      | unary_expression ASSIGNMENT_OPERATOR assignment_expression
+
+conditional_expression: logical_or_expression ["?" expression ":" conditional_expression]
+
+logical_or_expression: logical_and_expression ("||" logical_and_expression)*
+
+logical_and_expression: inclusive_or_expression ("&&" inclusive_or_expression)*
+
+inclusive_or_expression: exclusive_or_expression ("|" exclusive_or_expression)*
+
+exclusive_or_expression: and_expression ("^" and_expression)*
+
+and_expression: equality_expression ("&" equality_expression)*
+
+equality_expression: relational_expression (("==" | "!=") relational_expression)*
+
+relational_expression: shift_expression (("<" | ">" | "<=" | ">=") shift_expression)*
+
+shift_expression: additive_expression (("<<" | ">>") additive_expression)*
+
+additive_expression: multiplicative_expression (("+" | "_") multiplicative_expression)*
+
+multiplicative_expression: cast_expression (("*" | "/" | "%") cast_expression)*
+
+cast_expression: unary_expression
+                | "(" type_name ")" cast_expression
+
+unary_expression: postfix_expression
+                 | ("++" | "--") unary_expression
+                 | UNARY_OPERATOR cast_expression
+                 | "sizeof" unary_expression
+                 | "sizeof" "(" type_name ")"
+                 | "_Alignof" "(" type_name ")"
+
+postfix_expression: primary_expression
+                   | postfix_expression "[" expression "]"
+                   | postfix_expression "(" [argument_expression_list] ")"
+                   | postfix_expression ("." | "->") IDENTIFIER
+                   | postfix_expression ("++" | "--")
+                   | "(" type_name ")" "{" initializer_list [","] "}"
+
+UNARY_OPERATOR: "&"
+               | "*"
+               | "+"
+               | "-"
+               | "~"
+               | "!"
+
+primary_expression: IDENTIFIER
+                   | constant
+                   | string
+                   | "(" expression ")"
+                   | generic_selection
+
+argument_expression_list: assignment_expression ("," assignment_expression)*
+
+constant: INTEGER_CONSTANT
+         | CHARACTER_CONSTANT
+         | FLOATING_CONSTANT
+         | ENUMERATION_CONSTANT
+
+string: STRING_LITERAL
+       | "__func__"
+
+generic_selection: "_Generic" "(" assignment_expression "," generic_assoc_list ")"
+
+generic_assoc_list: generic_association ("," generic_association)*
+
+generic_association: type_name ":" assignment_expression
+                    | "default" ":" assignment_expression
+
+designation: designator_list "="
+
+designator_list: designator designator*
+
+designator: "[" constant_expression "]"
+           | "." IDENTIFIER
+
+statement: labeled_statement
+          | compound_statement
+          | expression_statement
+          | selection_statement
+          | iteration_statement
+          | jump_statement
+
+labeled_statement: IDENTIFIER ":" statement
+                  | "case" constant_expression ":" statement
+                  | "default" ":" statement
+
+expression_statement: [expression] ";"
+
+selection_statement: "if" "(" expression ")" statement "else" statement
+                    | "if" "(" expression ")" statement
+                    | "switch" "(" expression ")" statement
+
+ iteration_statement: "while" "(" expression ")" statement
+                     | "do" statement "while" "(" expression ")" ";"
+                     | "for" "(" [expression] ";" [expression] ";" [expression] ")" statement
+                     | "for" "(" declaration [expression] ";" [expression] ")" statement
+
+jump_statement: "goto" IDENTIFIER ";"
+               | "continue" ";"
+               | "break" ";"
+               | "return" [expression] ";"
+
+STRING_LITERAL: ESCAPED_STRING
+IDENTIFIER: CNAME
+
+INTEGER_CONSTANT: SIGNED_INT ("l" | "L")?
+              | INT (("l" | "L")? ("u" | "U")?)?
+
+CHARACTER_CONSTANT: "'" (LETTER | DIGIT) "'"
+
+FLOATING_CONSTANT: SIGNED_FLOAT (("f" | "F")? | ("l" | "L"))?
+
+%import common.ESCAPED_STRING
+%import common.CNAME
+%import common.INT
+%import common.SIGNED_INT
+%import common.SIGNED_FLOAT
+%import common.LETTER
+%import common.DIGIT
+%import common.WS
+%import common.NEWLINE
+%ignore WS

@@ -1,4 +1,4 @@
 PySimpleGUI
 tabulate
 clipboard
-pycparser
+lark

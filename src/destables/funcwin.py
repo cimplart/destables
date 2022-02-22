@@ -23,6 +23,19 @@ import tabhelper
 from tabulate import tabulate
 from c99tools import *
 
+FUNC_NAME = 'Function name:'
+DESCRIPTION = 'Description:'
+SYNTAX = 'Syntax:'
+HEADER = 'Declared in:'
+ISR = 'May be called from ISR:'
+REENTRANT = 'Reentrancy:'
+RETURN = 'Return value:'
+IN_PARAMS = 'Parameters [in]:'
+OUT_PARAMS = 'Parameters [out]:'
+IN_OUT_PARAMS = 'Parameters [in-out]:'
+CALL_CYCLE = 'Call cycle interval:'
+
+
 def _get_func_params(syntax):
     decl = syntax.replace('.. code-block::', '')
     decl = decl.replace('\n', ' ')
@@ -36,18 +49,6 @@ def _get_func_name(syntax):
     return get_func_name(decl)
 
 def show_function_table():
-
-    FUNC_NAME = 'Function name:'
-    DESCRIPTION = 'Description:'
-    SYNTAX = 'Syntax:'
-    HEADER = 'Declared in:'
-    ISR = 'May be called from ISR:'
-    REENTRANT = 'Reentrancy:'
-    RETURN = 'Return value:'
-    IN_PARAMS = 'Parameters [in]:'
-    OUT_PARAMS = 'Parameters [out]:'
-    IN_OUT_PARAMS = 'Parameters [in-out]:'
-    CALL_CYCLE = 'Call cycle interval:'
 
     inputs = [
         sg.Input(key=FUNC_NAME, size=(48, 1), enable_events=True),
@@ -109,100 +110,11 @@ def show_function_table():
             window['out-params']('None')
             window['inout-params']('None')
         elif 'copy' in event:
-            # Start of input validation.
-            window['status'].update('')
-            for k in simply_checked_keys:
-                if not values[k]:
-                    window[k+'-label'].update(text_color='red')
-                    continue
-                else:
-                    window[k+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
 
-            # Check consistency of the input.
-            try:
-                func_params = _get_func_params(values[SYNTAX])
-                window[SYNTAX+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
-            except Exception as e:
-                window['status'].update('Invalid syntax')
-                window[SYNTAX+'-label'].update(text_color='red')
+            if not _is_input_valid(values, window, simply_checked_keys, params_dict):
                 continue
 
-            if values[FUNC_NAME] == '' or _get_func_name(values[SYNTAX]) != values[FUNC_NAME].strip():
-                window['status'].update('Function name mismatch')
-                window[SYNTAX+'-label'].update(text_color='red')
-                window[FUNC_NAME+'-label'].update(text_color='red')
-                continue
-            else:
-                window[SYNTAX+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
-                window[FUNC_NAME+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
-
-            if values['retval-type'] != 'void' and not values['retval-description']:
-                window[RETURN+'-label'].update(text_color='red')
-                continue
-            else:
-                window[RETURN+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
-
-            documented_params = []
-            for k in params_dict:
-                if len(params_dict[k]) > 0:
-                    for par in params_dict[k]:
-                        documented_params.append(par[0])
-            undocumented_params = list(set(func_params) - set(documented_params))
-
-            if len(undocumented_params) > 0:
-                window['status'].update(str(len(undocumented_params)) + ' undocumented parameter(s)')
-                continue
-
-            params_missing_in_syntax = list(set(documented_params) - set(func_params))
-            if len(params_missing_in_syntax) > 0:
-                window[SYNTAX+'-label'].update(text_color='red')
-                window['status'].update(str(len(params_missing_in_syntax)) + ' missing parameter(s) in function syntax')
-                continue
-
-            if values['is-cyclic'] and not values[CALL_CYCLE]:
-                window[CALL_CYCLE+'-label'].update(text_color='red')
-                continue
-            else:
-                window[CALL_CYCLE+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
-
-            # End of input validation.
-            # Create the table.
-            header = [ FUNC_NAME, values[FUNC_NAME]]
-            table = [ [ DESCRIPTION, values[DESCRIPTION ] ],
-                      [ SYNTAX, values[SYNTAX] ],
-                      [ HEADER, values[HEADER] ]  ]
-            table.append( [ ISR, 'Yes' if values[ISR] else 'No' ] )
-            table.append( [ REENTRANT, 'Reentrant' if values[REENTRANT] else 'Non-reentrant' ] )
-
-            nested_return_table = None
-            if values['retval-type'] != 'void':
-                retval = [ [ values['retval-type'], values['retval-description'] ] ]
-                nested_return_table = tabulate(retval, tablefmt="grid")
-                table.append( [ RETURN, nested_return_table ] )
-            else:
-                table.append( [ RETURN, 'None' ] )
-
-            nested_params_tables = { 'in-params': None, 'out-params' : None, 'inout-params' : None   }
-            params_headers = { 'in-params': IN_PARAMS, 'out-params' : OUT_PARAMS, 'inout-params' : IN_OUT_PARAMS }
-
-            for i in [ 'in-params', 'out-params', 'inout-params' ]:
-                if len(params_dict[i]) > 0:
-                    nested_params_tables[i] = tabulate(params_dict[i], tablefmt="grid")
-                    table.append([ params_headers[i], nested_params_tables[i] ])
-                #else:
-                #    table.append([ params_headers[i], 'None' ])
-
-            if values['is-cyclic']:
-                table.append( [ CALL_CYCLE, values[CALL_CYCLE] ] )
-
-            table_str = tabulate(table, headers=header, tablefmt="grid")
-
-            if nested_return_table != None:
-                table_str = tabhelper.merge_nested_tables({ RETURN : nested_return_table }, table_str)
-
-            for i in [ 'in-params', 'out-params', 'inout-params' ]:
-                if nested_params_tables[i] != None:
-                    table_str = tabhelper.merge_nested_tables({ params_headers[i] : nested_params_tables[i] }, table_str)
+            table_str = _render_table(values, params_dict)
 
             print(table_str)
             clipboard.copy(table_str)
@@ -233,3 +145,112 @@ def show_function_table():
             break
 
     window.close()
+
+
+def _is_input_valid(values, window, simply_checked_keys, params_dict) -> bool:
+
+    is_input_valid = True
+
+    # Simple checks.
+    window['status'].update('')
+    for k in simply_checked_keys:
+        if not values[k]:
+            window[k+'-label'].update(text_color='red')
+            is_input_valid = False
+        else:
+            window[k+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+    if values['is-cyclic'] and not values[CALL_CYCLE]:
+        window[CALL_CYCLE+'-label'].update(text_color='red')
+        is_input_valid = False
+    else:
+        window[CALL_CYCLE+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+    if values['retval-type'] != 'void' and not values['retval-description']:
+        window[RETURN+'-label'].update(text_color='red')
+        is_input_valid = False
+    else:
+        window[RETURN+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+    if not is_input_valid:
+        return False
+
+    # Check consistency of the input.
+    try:
+        func_name, func_params = get_func_info(values[SYNTAX])
+        window[SYNTAX+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+    except Exception as e:
+        print('C parser exception: ', str(e))
+        window['status'].update('Invalid syntax')
+        window[SYNTAX+'-label'].update(text_color='red')
+        return False
+
+    if values[FUNC_NAME] == '' or func_name != values[FUNC_NAME].strip():
+        window['status'].update('Function name mismatch')
+        window[SYNTAX+'-label'].update(text_color='red')
+        window[FUNC_NAME+'-label'].update(text_color='red')
+        return False
+    else:
+        window[SYNTAX+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+        window[FUNC_NAME+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+    documented_params = []
+    for k in params_dict:
+        if len(params_dict[k]) > 0:
+            for par in params_dict[k]:
+                documented_params.append(par[0])
+    undocumented_params = list(set(func_params) - set(documented_params))
+
+    if len(undocumented_params) > 0:
+        window['status'].update(str(len(undocumented_params)) + ' undocumented parameter(s)')
+        return False
+
+    params_missing_in_syntax = list(set(documented_params) - set(func_params))
+    if len(params_missing_in_syntax) > 0:
+        window[SYNTAX+'-label'].update(text_color='red')
+        window['status'].update(str(len(params_missing_in_syntax)) + ' missing parameter(s) in function syntax')
+        return False
+
+    return True
+
+def _render_table(values, params_dict):
+
+    # Create the table.
+    header = [ FUNC_NAME, values[FUNC_NAME]]
+    table = [ [ DESCRIPTION, values[DESCRIPTION ] ],
+                [ SYNTAX, values[SYNTAX] ],
+                [ HEADER, values[HEADER] ]  ]
+    table.append( [ ISR, 'Yes' if values[ISR] else 'No' ] )
+    table.append( [ REENTRANT, 'Reentrant' if values[REENTRANT] else 'Non-reentrant' ] )
+
+    nested_return_table = None
+    if values['retval-type'] != 'void':
+        retval = [ [ values['retval-type'], values['retval-description'] ] ]
+        nested_return_table = tabulate(retval, tablefmt="grid")
+        table.append( [ RETURN, nested_return_table ] )
+    else:
+        table.append( [ RETURN, 'None' ] )
+
+    nested_params_tables = { 'in-params': None, 'out-params' : None, 'inout-params' : None   }
+    params_headers = { 'in-params': IN_PARAMS, 'out-params' : OUT_PARAMS, 'inout-params' : IN_OUT_PARAMS }
+
+    for i in [ 'in-params', 'out-params', 'inout-params' ]:
+        if len(params_dict[i]) > 0:
+            nested_params_tables[i] = tabulate(params_dict[i], tablefmt="grid")
+            table.append([ params_headers[i], nested_params_tables[i] ])
+        #else:
+        #    table.append([ params_headers[i], 'None' ])
+
+    if values['is-cyclic']:
+        table.append( [ CALL_CYCLE, values[CALL_CYCLE] ] )
+
+    table_str = tabulate(table, headers=header, tablefmt="grid")
+
+    if nested_return_table != None:
+        table_str = tabhelper.merge_nested_tables({ RETURN : nested_return_table }, table_str)
+
+    for i in [ 'in-params', 'out-params', 'inout-params' ]:
+        if nested_params_tables[i] != None:
+            table_str = tabhelper.merge_nested_tables({ params_headers[i] : nested_params_tables[i] }, table_str)
+
+    return table_str
