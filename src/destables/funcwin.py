@@ -36,18 +36,6 @@ IN_OUT_PARAMS = 'Parameters [in-out]:'
 CALL_CYCLE = 'Call cycle interval:'
 
 
-def _get_func_params(syntax):
-    decl = syntax.replace('.. code-block::', '')
-    decl = decl.replace('\n', ' ')
-    decl = decl.strip() + ';'
-    return get_func_params(decl)
-
-def _get_func_name(syntax):
-    decl = syntax.replace('.. code-block::', '')
-    decl = decl.replace('\n', ' ')
-    decl = decl.strip() + ';'
-    return get_func_name(decl)
-
 def show_function_table():
 
     inputs = [

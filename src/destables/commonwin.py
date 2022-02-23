@@ -26,30 +26,34 @@ def show_inner_table(initial_values, header, required_cols, col_width):
 
     result = initial_values
 
-    MAX_ROWS = 16
+    MAX_ROWS = 1 + 16
     MAX_COL = len(header)
 
-    inner_layout = [ [ sg.Input(pad=(1,1), justification='right', key=str(i)+','+str(j), enable_events=True, size=(col_width[j], 1))
+    inner_layout = [ [ sg.Input(pad=(1,1), justification='left', key=str(i)+','+str(j), enable_events=True, size=(col_width[j], 1))
                       for j in range(MAX_COL) ] for i in range(MAX_ROWS) ]
 
     column_layout = [ [ hidable([ inner_layout[row] ], key=row) ] for row in range(MAX_ROWS) ]
 
-    layout = [ [ sg.Text(header[i], size=(20, 1)) for i in range(len(header)) ],
-               [ sg.Col(column_layout, scrollable=True) ],
+    layout = [ [ sg.Col(column_layout, scrollable=True) ],
                [ sg.Push(), sg.Ok(size=(15, 1)), sg.Cancel(size=(15, 1)) ] ]
 
     window = sg.Window('Add feature elements', layout, finalize=True)
 
+    #Fill header row.
+    for col in range(MAX_COL):
+        window['0,'+str(col)].update(background_color='cyan')   #doesn't work :(
+        window['0,'+str(col)].update(value=header[col], disabled=True)
+
     for row in range(len(initial_values)):
         for col in range(MAX_COL):
-            window[str(row)+','+str(col)].update(value=initial_values[row][col])
+            window[str(row+1)+','+str(col)].update(value=initial_values[row][col])
 
-    for row in range(MAX_ROWS):
-        if row > len(initial_values):
+    for row in range(1, MAX_ROWS):
+        if row > len(initial_values)+1:
             window[row].update(visible=False)
         for col in range(MAX_COL):
             window[str(row)+','+str(col)].bind("<Return>", "_RETURN")
-    last_visible_row = len(initial_values)
+    last_visible_row = len(initial_values) + 1
     window[str(last_visible_row)+',0'].set_focus()
 
     while True:
@@ -72,7 +76,7 @@ def show_inner_table(initial_values, header, required_cols, col_width):
 
         if event == 'Ok':
             result = []
-            for row in range(last_visible_row+1):
+            for row in range(1, last_visible_row+1):
                 col_values = []
                 for col in range(MAX_COL):
                     col_values.append(values[str(row)+','+str(col)])
