@@ -19,7 +19,7 @@
 from typewin import *
 from funcwin import *
 import PySimpleGUI as sg
-from c99tools import init_parser
+from c11tools import init_parser
 
 def main():
 

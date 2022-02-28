@@ -21,7 +21,7 @@ from commonwin import *
 import clipboard
 import tabhelper
 from tabulate import tabulate
-from c99tools import *
+from c11tools import *
 
 FUNC_NAME = 'Function name:'
 DESCRIPTION = 'Description:'

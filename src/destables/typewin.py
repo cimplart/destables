@@ -21,37 +21,47 @@ from commonwin import *
 import clipboard
 import tabhelper
 from tabulate import tabulate
+from c11tools import *
+
+TYPE_NAME = 'Type name:'
+DESCRIPTION = 'Description:'
+KIND = 'Kind:'
+HEADER = 'Declared in:'
+TYPEDEF = 'Type:'
+ELEMENTS = 'Elements:'
+CONSTANTS = 'Constants:'
 
 def show_type_table():
 
-    fields = [ 'Type name:', 'Description:', 'Kind:', 'Declared in:', 'Type:', 'Elements:', 'Constants:' ]
     kinds = [ 'Typedef', 'Structure', 'Enumeration' ]
 
     inputs = [
-        sg.InputText(key=fields[0], size=(64, 1)),
-        sg.Multiline(key=fields[1], enter_submits=False, autoscroll=True, size=(64, 2)),
-        sg.Combo(kinds, kinds[1], key=fields[2], enable_events=True, readonly=True, size=(32, 1)),
-        sg.InputText(key=fields[3], size=(32, 1)),
-        sg.Multiline(key=fields[4], enter_submits=False, autoscroll=True, enable_events=True, size=(64, 1))
+        sg.InputText(key=TYPE_NAME, size=(64, 1)),
+        sg.Multiline(key=DESCRIPTION, enter_submits=False, autoscroll=True, size=(64, 2)),
+        sg.Combo(kinds, kinds[0], key=KIND, enable_events=True, readonly=True, size=(32, 1)),
+        sg.InputText(key=HEADER, size=(32, 1)),
+        sg.Multiline(key=TYPEDEF, enter_submits=False, autoscroll=True, enable_events=True, size=(64, 1))
     ]
 
-    typedef_row = [ [ sg.Text(fields[4]), sg.Push(), inputs[4]] ]
-    struct_row = [ [ sg.Text(fields[5]), sg.Text('None', key='struct-fields', size=(48, 1)),
+    typedef_row = [ [ sg.Text(TYPEDEF, key=TYPEDEF+'-label'), sg.Push(), inputs[4]] ]
+    struct_row = [ [ sg.Text(ELEMENTS), sg.Text('None', key='struct-fields', size=(48, 1)),
                      sg.Button('Edit elements', key='edit-elements', enable_events=True) ] ]
-    enum_row = [ [ sg.Text(fields[6]), sg.Text('None', key='enum-values', size=(48, 1)),
+    enum_row = [ [ sg.Text(CONSTANTS), sg.Text('None', key='enum-values', size=(48, 1)),
                      sg.Button('Edit enum constants', key='edit-constants', enable_events=True) ] ]
 
     layout = [
-                ([ sg.Text(fields[i]), sg.Push(), inputs[i] ] for i in range(4)),
+        ([ sg.Text([ TYPE_NAME, DESCRIPTION, KIND, HEADER ][i], k=[ TYPE_NAME, DESCRIPTION, KIND, HEADER ][i]+'-label'),
+           sg.Push(), inputs[i] ] for i in range(4)),
                 [ hidable(typedef_row, key='typedef-row')],
                 [ hidable(struct_row, key='struct-row') ],
                 [ hidable(enum_row, key='enum-row')],
                 [ sg.HorizontalSeparator() ],
-                [ sg.Push(), sg.Button('Clear', key='clear'), sg.Button('Copy table to clipboard', key='copy'),
-                  sg.Button('Close', key='close') ]
+                [ sg.Text('', key='status', size=(48,1), text_color='red'), sg.Push(),
+                        sg.Button('Clear', key='clear'), sg.Button('Copy table to clipboard', key='copy'),
+                        sg.Button('Close', key='close') ]
              ]
 
-    clearable_keys = [ k for k in fields[0:4] if k != 'Kind:' ] + [ 'struct-fields', 'enum-values']
+    clearable_keys = [ TYPE_NAME, DESCRIPTION, HEADER, TYPEDEF ] + [ 'struct-fields', 'enum-values']
 
     window = sg.Window('Fill in type table', layout, finalize=True)
 
@@ -60,11 +70,13 @@ def show_type_table():
     code_cell.update(' .. code-block::' + code_indent)
     code_cell.bind("<Return>", "RETURN")
 
-    window['typedef-row'].update(visible=False)
+    window['struct-row'].update(visible=False)
     window['enum-row'].update(visible=False)
 
     struct_elements = [ ]
     enum_constants = [ ]
+
+    simply_checked_keys = [ TYPE_NAME, DESCRIPTION, HEADER ]
 
     inner_table_col_width = [ 32, 32, 64]
 
@@ -84,29 +96,11 @@ def show_type_table():
             window['struct-fields']('None')
             window['enum-values']('None')
         elif 'copy' in event:
-            header = [fields[0], values[fields[0]]]
-            table = [ [ fields[i], values[fields[i]] ] for i in range(1, 4) ]
-            if values['Kind:'] == 'Typedef':
-                table.extend([ [ fields[4], values[fields[4]] ] ])
-            elif values['Kind:'] == 'Structure':
-                nested_table = None
-                if len(struct_elements) > 0:
-                    nested_table = tabulate(struct_elements, tablefmt="grid")
-                    table.extend([ [ fields[5], nested_table ] ])
-                else:
-                    table.extend([ [ fields[5], 'None' ] ])
-            elif values['Kind:'] == 'Enumeration':
-                nested_table = None
-                if len(enum_constants) > 0:
-                    nested_table = tabulate(enum_constants, tablefmt="grid")
-                    table.extend([ [ fields[6], nested_table ] ])
-                else:
-                    table.extend([ [ fields[6], 'None' ] ])
-            table_str = tabulate(table, headers=header, tablefmt="grid")
-            if values['Kind:'] == 'Structure' and nested_table != None:
-                table_str = tabhelper.merge_nested_tables({ fields[5] : nested_table }, table_str)
-            elif values['Kind:'] == 'Enumeration' and nested_table != None:
-                table_str = tabhelper.merge_nested_tables({ fields[6] : nested_table }, table_str)
+
+            if not _is_input_valid(values, window, simply_checked_keys):
+                continue
+
+            table_str = _render_table(values, struct_elements, enum_constants)
 
             print(table_str)
             clipboard.copy(table_str)
@@ -156,3 +150,77 @@ def show_type_table():
             break
 
     window.close()
+
+def _is_input_valid(values, window, simply_checked_keys) -> bool:
+
+    is_input_valid = True
+
+    # Simple checks.
+    window['status'].update('')
+    for k in simply_checked_keys:
+        if not values[k]:
+            window[k+'-label'].update(text_color='red')
+            is_input_valid = False
+        else:
+            window[k+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+    if values[KIND] == 'Typedef':
+        try:
+            type_name = get_typedef_name(values[TYPEDEF])
+            window[TYPEDEF+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+        except Exception as e:
+            print('C parser exception: ', str(e))
+            window['status'].update('Invalid syntax')
+            window[TYPEDEF+'-label'].update(text_color='red')
+            return False
+
+        if type_name is None:
+            window['status'].update('Invalid typedef syntax')
+            window[TYPEDEF+'-label'].update(text_color='red')
+            window[TYPE_NAME+'-label'].update(text_color='red')
+            return False
+
+        if type_name != values[TYPE_NAME]:
+            window['status'].update('Type name mismatch')
+            window[TYPEDEF+'-label'].update(text_color='red')
+            window[TYPE_NAME+'-label'].update(text_color='red')
+            return False
+        else:
+            window[TYPEDEF+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+            window[TYPE_NAME+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+    return is_input_valid
+
+
+def _render_table(values, struct_elements, enum_constants):
+
+    # Create the table.
+    header = [TYPE_NAME, values[TYPE_NAME]]
+    table = [ [ DESCRIPTION, values[DESCRIPTION] ],
+              [ KIND, values[KIND] ],
+              [ HEADER, values[HEADER] ] ]
+    if values[KIND] == 'Typedef':
+        table.extend([ [ TYPEDEF, values[TYPEDEF] ] ])
+    elif values[KIND] == 'Structure':
+        nested_table = None
+        if len(struct_elements) > 0:
+            nested_table = tabulate(struct_elements, tablefmt="grid")
+            table.extend([ [ ELEMENTS, nested_table ] ])
+        else:
+            table.extend([ [ ELEMENTS, 'None' ] ])
+    elif values[KIND] == 'Enumeration':
+        nested_table = None
+        if len(enum_constants) > 0:
+            nested_table = tabulate(enum_constants, tablefmt="grid")
+            table.extend([ [ CONSTANTS, nested_table ] ])
+        else:
+            table.extend([ [ CONSTANTS, 'None' ] ])
+
+    table_str = tabulate(table, headers=header, tablefmt="grid")
+
+    if values[KIND] == 'Structure' and nested_table != None:
+        table_str = tabhelper.merge_nested_tables({ ELEMENTS : nested_table }, table_str)
+    elif values[KIND] == 'Enumeration' and nested_table != None:
+        table_str = tabhelper.merge_nested_tables({ CONSTANTS : nested_table }, table_str)
+
+    return table_str

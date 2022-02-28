@@ -86,5 +86,5 @@ def show_inner_table(initial_values, header, required_cols, col_width):
             break
 
     window.close()
-    print(result)
+    #print(result)
     return result
