@@ -17,6 +17,7 @@
 #
 
 import tabulate
+import re
 
 def _find_header_rownum(header, tab_lines):
     header_row_num = None
@@ -56,7 +57,10 @@ def merge_nested_tables(nested_dict, table_str):
         # perform the merge
         for row in range(header_row_num, bottom_frame_num):
             tab_lines[row] = tab_lines[row].replace('| +', '+--')
-            tab_lines[row] = tab_lines[row].replace('+ |', '--+')
+            # For example '+     |' gets replaced with '------+'
+            def repl_fun(matchobj):
+                return '-' + '-' * len(matchobj.group(1)) + '+'
+            tab_lines[row] = re.sub(r'\+([ ]+)\|', repl_fun, tab_lines[row])
             for i in range(len(tab_lines[header_row_num-1])):
                 if tab_lines[row][i] == '|' and tab_lines[header_row_num-1][i] != '+':
                     tab_lines[row] = _replace(' ', i, tab_lines[row])
