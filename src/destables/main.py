@@ -18,6 +18,7 @@
 
 from typewin import *
 from funcwin import *
+from varwin import *
 import PySimpleGUI as sg
 from c11tools import init_parser
 
@@ -28,8 +29,8 @@ def main():
     layout = [[ sg.Button('Type table', key='type', size = (30, 2)) ],
               [ sg.Button('Function table', key='function', size = (30, 2)) ],
               [ sg.Button('Variables table', key='variables', size = (30, 2)) ],
-              [ sg.Button('Macro constants table', key='macro-constants', size = (30, 2)) ],
-              [ sg.Button('Macro function table', key='macro-function', size = (30, 2)) ],
+#              [ sg.Button('Macro constants table', key='macro-constants', size = (30, 2)) ],
+#              [ sg.Button('Macro function table', key='macro-function', size = (30, 2)) ],
               [ sg.HorizontalSeparator() ],
               [ sg.Button('Exit', size = (30, 3))] ]
 
@@ -44,6 +45,8 @@ def main():
             show_type_table()
         elif event == 'function':
             show_function_table()
+        elif event == 'variables':
+            show_variable_table()
 
     window.close()
 

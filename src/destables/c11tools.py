@@ -35,6 +35,22 @@ def _decl_from_syntax(syntax):
     decl = decl.strip() + ';'
     return decl
 
+def _parse_declaration(syntax):
+    global parser
+
+    c_decl = _decl_from_syntax(syntax)
+    if c_decl[-1] != ';':
+        c_decl.append(';')
+
+    input_stream = InputStream(c_decl)
+
+    lexer = C11Lexer(input_stream)
+    stream = CommonTokenStream(lexer)
+    parser.setInputStream(stream)
+    parse_tree = parser.declaration()
+    return parse_tree
+
+
 class FuncVisitor(C11Visitor):
 
     def __init__(self) -> None:
@@ -60,18 +76,7 @@ class FuncVisitor(C11Visitor):
 
 def get_func_info(syntax):
 
-    global parser
-
-    c_decl = _decl_from_syntax(syntax)
-    if c_decl[-1] != ';':
-        c_decl.append(';')
-
-    input_stream = InputStream(c_decl)
-
-    lexer = C11Lexer(input_stream)
-    stream = CommonTokenStream(lexer)
-    parser.setInputStream(stream)
-    parse_tree = parser.declaration()
+    parse_tree = _parse_declaration(syntax)
 
     visitor = FuncVisitor()
     visitor.visit(tree=parse_tree)
@@ -111,18 +116,7 @@ class TypedefVisitor(C11Visitor):
 
 def get_typedef_name(syntax):
 
-    global parser
-
-    c_decl = _decl_from_syntax(syntax)
-    if c_decl[-1] != ';':
-        c_decl.append(';')
-
-    input_stream = InputStream(c_decl)
-
-    lexer = C11Lexer(input_stream)
-    stream = CommonTokenStream(lexer)
-    parser.setInputStream(stream)
-    parse_tree = parser.declaration()
+    parse_tree = _parse_declaration(syntax)
 
     visitor = TypedefVisitor()
     visitor.visit(tree=parse_tree)
@@ -131,3 +125,20 @@ def get_typedef_name(syntax):
         return visitor.typedef_name
     return None
 
+class VarVisitor(C11Visitor):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visitDirectDeclarator(self, ctx: C11Parser.DirectDeclaratorContext):
+        if ctx.Identifier() is not None:
+            self.var_name = ctx.Identifier().symbol.text
+        return super().visitDirectDeclarator(ctx)
+
+def get_variable_name(syntax):
+
+    parse_tree = _parse_declaration(syntax)
+
+    visitor = VarVisitor()
+    visitor.visit(tree=parse_tree)
+    return visitor.var_name
