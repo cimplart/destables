@@ -22,11 +22,18 @@ from varwin import *
 import PySimpleGUI as sg
 from c11tools import init_parser
 
+TABLE_DIRECTIVE = 'Add .. table:: directive'
+INDENT_SIZE = "Indentation"
+
 def main():
 
     init_parser()
 
-    layout = [[ sg.Button('Type table', key='type', size = (30, 2)) ],
+    layout = [ [ sg.Checkbox(text=TABLE_DIRECTIVE, key=TABLE_DIRECTIVE, default=True) ],
+               [ sg.Text(INDENT_SIZE, k=INDENT_SIZE+'-label'), sg.Push(),
+                 sg.Slider(orientation ='horizontal', key=INDENT_SIZE, range=(0,4), default_value=4, size=(15, 20)) ],
+              [ sg.HorizontalSeparator() ],
+              [ sg.Button('Type table', key='type', size = (30, 2)) ],
               [ sg.Button('Function table', key='function', size = (30, 2)) ],
               [ sg.Button('Variables table', key='variables', size = (30, 2)) ],
 #              [ sg.Button('Macro constants table', key='macro-constants', size = (30, 2)) ],
@@ -39,14 +46,16 @@ def main():
     while True:
         event, values = window.read()
         print(event, values)
+        indent_size = int(values[INDENT_SIZE])
+        add_table_dir = values[TABLE_DIRECTIVE]
         if event == sg.WIN_CLOSED or event == 'Exit':
             break
         if event == 'type':
-            show_type_table()
+            show_type_table(indent_size, add_table_dir)
         elif event == 'function':
-            show_function_table()
+            show_function_table(indent_size, add_table_dir)
         elif event == 'variables':
-            show_variable_table()
+            show_variable_table(indent_size, add_table_dir)
 
     window.close()
 

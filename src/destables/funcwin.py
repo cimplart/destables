@@ -36,7 +36,7 @@ IN_OUT_PARAMS = 'Parameters [in-out]:'
 CALL_CYCLE = 'Call cycle interval:'
 
 
-def show_function_table():
+def show_function_table(indent_size, add_table_directive):
 
     inputs = [
         sg.Input(key=FUNC_NAME, size=(48, 1), enable_events=True),
@@ -103,6 +103,7 @@ def show_function_table():
                 continue
 
             table_str = _render_table(values, params_dict)
+            table_str = tabhelper._decorate_table(table_str, indent_size, add_table_directive)
 
             print(table_str)
             clipboard.copy(table_str)

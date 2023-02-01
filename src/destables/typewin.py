@@ -31,7 +31,7 @@ TYPEDEF = 'Type:'
 ELEMENTS = 'Elements:'
 CONSTANTS = 'Constants:'
 
-def show_type_table():
+def show_type_table(indent_size, add_table_directive):
 
     kinds = [ 'Typedef', 'Structure', 'Enumeration' ]
 
@@ -101,6 +101,7 @@ def show_type_table():
                 continue
 
             table_str = _render_table(values, struct_elements, enum_constants)
+            table_str = tabhelper._decorate_table(table_str, indent_size, add_table_directive)
 
             print(table_str)
             clipboard.copy(table_str)
@@ -224,3 +225,4 @@ def _render_table(values, struct_elements, enum_constants):
         table_str = tabhelper.merge_nested_tables({ CONSTANTS : nested_table }, table_str)
 
     return table_str
+

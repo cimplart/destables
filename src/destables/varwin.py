@@ -29,7 +29,7 @@ VARIABLES = 'Variables:'
 DESCRIPTION = 'Description:'
 SYNTAX = 'Syntax:'
 
-def show_variable_table():
+def show_variable_table(indent_size, add_table_directive):
 
     inputs = [
         sg.Input(key=VAR_GROUP, size=(48, 1), enable_events=True),
@@ -72,6 +72,7 @@ def show_variable_table():
                 continue
 
             table_str = _render_table(values, variables)
+            table_str = tabhelper._decorate_table(table_str, indent_size, add_table_directive)
 
             print(table_str)
             clipboard.copy(table_str)
