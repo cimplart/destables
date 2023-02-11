@@ -59,7 +59,7 @@ def show_function_table(indent_size, add_table_directive):
            sg.Push(), inputs[i] ] for i in range(4)),
         [ sg.Checkbox(text=ISR, key=ISR) ],
         [ sg.Checkbox(text=REENTRANT, key=REENTRANT) ],
-        [ sg.Text(RETURN, k=RETURN+'-label'), sg.Push(), sg.Input('void', key='retval-type', size=(32,1)), sg.Input(key='retval-description', size=(64,1)) ],
+        [ sg.Text(RETURN, k=RETURN+'-label'), sg.Push(), sg.Text('', key='retval-type', size=(32,1)), sg.Input(key='retval-description', size=(64,1)) ],
         [ sg.Text(IN_PARAMS, k=IN_PARAMS+'-label'), sg.Text('None', key='in-params', size=(48, 1)), sg.Push(), sg.Button('Edit input parameters', key='edit-in-params', enable_events=True) ],
         [ sg.Text(OUT_PARAMS, k=OUT_PARAMS+'-label'), sg.Text('None', key='out-params', size=(48, 1)), sg.Push(), sg.Button('Edit output parameters', key='edit-out-params', enable_events=True) ],
         [ sg.Text(IN_OUT_PARAMS, k=IN_OUT_PARAMS+'-label'), sg.Text('None', key='inout-params', size=(48, 1)), sg.Push(), sg.Button('Edit in-out parameters', key='edit-inout-params', enable_events=True) ],
@@ -166,18 +166,12 @@ def _is_input_valid(values, window, simply_checked_keys, params_dict) -> bool:
     else:
         window[CALL_CYCLE+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
 
-    if values['retval-type'] != 'void' and not values['retval-description']:
-        window[RETURN+'-label'].update(text_color='red')
-        is_input_valid = False
-    else:
-        window[RETURN+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
-
     if not is_input_valid:
         return False
 
     # Check consistency of the input.
     try:
-        func_name, func_params = get_func_info(values[SYNTAX])
+        func_name, func_params, func_result_type = get_func_info(values[SYNTAX])
         window[SYNTAX+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
     except Exception as e:
         print('C parser exception: ', str(e))
@@ -193,6 +187,15 @@ def _is_input_valid(values, window, simply_checked_keys, params_dict) -> bool:
     else:
         window[SYNTAX+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
         window[FUNC_NAME+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
+
+    values['retval-type'] = func_result_type
+    window['retval-type'](func_result_type)
+
+    if values['retval-type'] != 'void' and not values['retval-description']:
+        window[RETURN+'-label'].update(text_color='red')
+        return False
+    else:
+        window[RETURN+'-label'].update(text_color=sg.DEFAULT_TEXT_COLOR)
 
     documented_params = []
     for k in params_dict:

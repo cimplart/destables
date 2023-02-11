@@ -50,6 +50,11 @@ def _parse_declaration(syntax):
     parse_tree = parser.declaration()
     return parse_tree
 
+def extract_original_text(ctx):
+    token_source = ctx.start.getTokenSource()
+    input_stream = token_source.inputStream
+    start, stop  = ctx.start.start, ctx.stop.stop
+    return input_stream.getText(start, stop)
 
 class FuncVisitor(C11Visitor):
 
@@ -57,6 +62,7 @@ class FuncVisitor(C11Visitor):
         super().__init__()
         self.func_name = None
         self.func_params = []
+        self.func_result_type = None
         self._in_params_list = False
 
     def visitDirectDeclarator(self, ctx: C11Parser.DirectDeclaratorContext):
@@ -73,14 +79,25 @@ class FuncVisitor(C11Visitor):
         self._in_params_list = True
         return super().visitParameterList(ctx)
 
+    # Visit a parse tree produced by C11Parser#declaration.
+    def visitDeclaration(self, ctx:C11Parser.DeclarationContext):
+        if ctx.parentCtx is None and len(ctx.children) > 1:
+            self.func_result_type = extract_original_text(ctx.declarationSpecifiers())
+        return self.visitChildren(ctx)
+
+
+from antlr4.tree.Trees import Trees
 
 def get_func_info(syntax):
+    global parser
 
     parse_tree = _parse_declaration(syntax)
 
+    #print(Trees.toStringTree(parse_tree, ruleNames=None, recog=parser))
+
     visitor = FuncVisitor()
     visitor.visit(tree=parse_tree)
-    return visitor.func_name, visitor.func_params
+    return visitor.func_name, visitor.func_params, visitor.func_result_type
 
 
 class TypedefVisitor(C11Visitor):
