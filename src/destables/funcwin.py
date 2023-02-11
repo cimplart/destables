@@ -35,13 +35,22 @@ OUT_PARAMS = 'Parameters [out]:'
 IN_OUT_PARAMS = 'Parameters [in-out]:'
 CALL_CYCLE = 'Call cycle interval:'
 
+SYNTAX_CODE_INDENT = '\n   '
+
+def get_func_param_indent(syntax):
+    lines = syntax.split('\n')
+    for l in lines:
+        par_pos = l.find('(')
+        if par_pos > 0:
+            return par_pos + 1
+    return SYNTAX_CODE_INDENT.count(' ')
 
 def show_function_table(indent_size, add_table_directive):
 
     inputs = [
         sg.Input(key=FUNC_NAME, size=(48, 1), enable_events=True),
         sg.Multiline(key=DESCRIPTION, enter_submits=False, autoscroll=True, size=(64, 2), enable_events=True),
-        sg.Multiline(key=SYNTAX, enter_submits=False, autoscroll=True, enable_events=True, size=(64, 5)),
+        sg.Multiline(key=SYNTAX, enter_submits=False, autoscroll=True, enable_events=True, size=(80, 7)),
         sg.Input(key=HEADER, size=(32, 1), enable_events=True),
     ]
 
@@ -68,9 +77,8 @@ def show_function_table(indent_size, add_table_directive):
 
     window = sg.Window('Fill in function table', layout, finalize=True)
 
-    code_indent = '\n   '
     code_cell = inputs[2]
-    code_cell.update(' .. code-block::' + code_indent)
+    code_cell.update(' .. code-block::' + 2 * SYNTAX_CODE_INDENT)
     code_cell.bind("<Return>", "RETURN")
 
     window[CALL_CYCLE].update(disabled=True)
@@ -91,7 +99,7 @@ def show_function_table(indent_size, add_table_directive):
         if event == 'clear':
             for k in clearable_keys:
                 window[k]('')
-            code_cell.update(' .. code-block::' + code_indent)
+            code_cell.update(' .. code-block::' + 2 * SYNTAX_CODE_INDENT)
             for k in params_dict:
                 params_dict[k] = []
             window['in-params']('None')
@@ -108,7 +116,10 @@ def show_function_table(indent_size, add_table_directive):
             print(table_str)
             clipboard.copy(table_str)
         elif 'RETURN' in event:
-            code_cell.update(code_cell.get() + code_indent)
+            if code_cell.get().find('\n') < 0:
+                code_cell.update(code_cell.get() + 2 * SYNTAX_CODE_INDENT)
+            else:
+                code_cell.update(code_cell.get() + '\n' + get_func_param_indent(code_cell.get()) * ' ')
         elif event in [ 'edit-in-params', 'edit-out-params', 'edit-inout-params' ]:
             params_key = event.replace('edit-', '')
             params_dict[params_key] = show_inner_table(params_dict[params_key], ['Parameter:', 'Description:'],

@@ -79,7 +79,7 @@ def show_inner_table(initial_values, header, required_cols, col_width):
             for row in range(1, last_visible_row+1):
                 col_values = []
                 for col in range(MAX_COL):
-                    col_values.append(values[str(row)+','+str(col)])
+                    col_values.append(values[str(row)+','+str(col)].strip())
                 #Required entries must not be empty.
                 if all([ col_values[c] != '' or c not in required_cols for c in range(MAX_COL) ]):
                     result.append(col_values)
