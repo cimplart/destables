@@ -76,10 +76,11 @@ def merge_nested_tables(nested_dict, table_str):
 
 def _decorate_table(table_str, indent_size, add_table_dir):
 
-    decorated_str = '.. table::\n\n' if add_table_dir else ''
+    decorated_str = '.. table::\n   :align: left\n\n' if add_table_dir else ''
 
     lines = table_str.split('\n')
     for l in lines:
         decorated_str += indent_size * ' ' + l + '\n'
 
     return decorated_str
+

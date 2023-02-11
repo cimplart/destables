@@ -202,6 +202,12 @@ def _is_input_valid(values, window, simply_checked_keys, params_dict) -> bool:
 
     return True
 
+def pad_value(value, width):
+    if width - len(value) > 0:
+        return value + '$' * (width - len(value))
+    else:
+        return value
+
 def _render_table(values, params_dict):
 
     # Create the table.
@@ -212,11 +218,19 @@ def _render_table(values, params_dict):
     table.append( [ ISR, 'Yes' if values[ISR] else 'No' ] )
     table.append( [ REENTRANT, 'Reentrant' if values[REENTRANT] else 'Non-reentrant' ] )
 
+    #Calculate a common column width for the return value and all arguments, for later field alignment.
+    mid_col_min_width = len(values['retval-type'])
+    for k in params_dict:
+        if params_dict[k]:
+            for param in params_dict[k]:
+                if len(param[0]) > mid_col_min_width:
+                    mid_col_min_width = len(param[0])
+
     nested_return_table = None
     if values['retval-type'] != 'void':
-        retval = [ [ values['retval-type'], values['retval-description'] ] ]
+        retval = [ [ pad_value(values['retval-type'], mid_col_min_width), values['retval-description'] ] ]
         nested_return_table = tabulate(retval, tablefmt="grid")
-        table.append( [ RETURN, nested_return_table ] )
+        table.append( [ RETURN, nested_return_table.replace('$', ' ') ] )
     else:
         table.append( [ RETURN, 'None' ] )
 
@@ -225,8 +239,12 @@ def _render_table(values, params_dict):
 
     for i in [ 'in-params', 'out-params', 'inout-params' ]:
         if len(params_dict[i]) > 0:
+            #Pad parameter names to force alignment during tabulation.
+            params_dict[i] = [ [ pad_value(param[0], mid_col_min_width), param[1] ] for param in params_dict[i] ]
             nested_params_tables[i] = tabulate(params_dict[i], tablefmt="grid")
-            table.append([ params_headers[i], nested_params_tables[i] ])
+            table.append([ params_headers[i], nested_params_tables[i].replace('$', ' ') ])
+            #Revert padding.
+            params_dict[i] = [ [ param[0].replace('$', ''), param[1] ] for param in params_dict[i] ]
         #else:
         #    table.append([ params_headers[i], 'None' ])
 
