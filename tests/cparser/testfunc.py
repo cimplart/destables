@@ -59,6 +59,21 @@ class TestFunctionDeclarations(unittest.TestCase):
         self.assertIn('notification', v.func_params)
         self.assertEqual(len(v.func_params), 2)
 
+    def test_case3(self):
+        decl = 'void func(int *p);'
+        parse_tree = _parse(decl)
+
+        v = c11tools.FuncVisitor()
+        v.visit(tree=parse_tree)
+        self.assertEqual(v.func_name, 'func')
+
+    def test_case4(self):
+        decl = 'SomeType *func(OtherType *p);'
+        parse_tree = _parse(decl)
+
+        v = c11tools.FuncVisitor()
+        v.visit(tree=parse_tree)
+        self.assertEqual(v.func_name, 'func')
 
 if __name__ == '__main__':
     unittest.main()

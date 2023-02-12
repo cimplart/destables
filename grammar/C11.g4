@@ -301,7 +301,9 @@ directDeclarator
     |   directDeclarator '(' parameterTypeList ')'
     |   directDeclarator '(' identifierList? ')'
     |   Identifier ':' DigitSequence  // bit field
-    |   '(' typeSpecifier? pointer directDeclarator ')' // function pointer like: (__cdecl *f)
+//  The optional typeSpecifier breaks parsing even simple function declarations like void func(int *p);
+//    |   '(' typeSpecifier? pointer directDeclarator ')' // function pointer like: (__cdecl *f)
+    |   '(' pointer directDeclarator ')' // function pointer like: (*f)
     ;
 
 gccDeclaratorExtension
